@@ -1,26 +1,70 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { Prisma } from '@prisma/client';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class ProductsService {
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  constructor(private readonly databaseService: DatabaseService) {}
+
+  /*
+  @Body
+  name?: string
+  value?: number
+  qnt?: number
+  */
+  async create(createProductDto: Prisma.ProductCreateInput) {
+    //ATRIBUIR O OWNERID AO PRODUTO
+    await this.databaseService.product.create({ 
+      data: createProductDto
+    });
+    return 'Produto cadastrado';
   }
 
-  findAll() {
-    return `This action returns all products`;
+  async findAll() {
+    const products = this.databaseService.product.findMany();
+    if(!products) {
+      return 'Nenhum produto cadastrado.';
+    } else {
+      return products;
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(id: number) {
+    const product = await this.databaseService.product.findUnique({ where: {id}} );
+    if(product){ 
+      return product;
+    } else {
+      return 'Produto não encontrado';
+    }
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  /*
+  @Body
+  name?: string
+  value?: number
+  qnt?: number
+  */
+  async update(id: number, updateProductDto: Prisma.ProductUpdateInput) {
+    const product = await this.databaseService.product.findUnique({ where: {id}} );
+    if(product){
+      await this.databaseService.product.update({ 
+        where: {id},
+        data: updateProductDto,
+      } );
+      return 'Produto deletado';
+    } else {
+      return 'Nenhum produto cadastrado com o id: ' + id;
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: number) {
+    const product = await this.databaseService.product.findUnique({ where: {id}} );
+    if(product){
+      await this.databaseService.product.delete({ where: {id}} );
+      return 'Produto deletado';
+    } else {
+      return 'Nenhum produto cadastrado com o id: ' + id;
+    }
   }
 }

@@ -2,22 +2,33 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DatabaseService } from 'src/database/database.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  /*
+  @Body
+  name: string
+  role: string
+  password: string
+  passwordConfirmation: string
+  admin: boolean
+  */
   async create(createUserDto: Prisma.UserCreateInput) {
     const { passwordConfirmation, ...userDataWithoutConfirmation } =
       createUserDto;
-
     // Verificar se passwordConfirmation coincide com a senha
     if (createUserDto.password !== passwordConfirmation) {
       return 'A senha e a confirmação de senha não coincidem.';
     }
 
     const newUser = await this.databaseService.user.create({
-      data: userDataWithoutConfirmation,
+      data: {
+        ...userDataWithoutConfirmation,
+        password: await bcrypt.hash(createUserDto.password, 2),
+    },
     });
 
     return newUser;
@@ -41,6 +52,13 @@ export class UsersService {
     }
   }
 
+  /*
+  @Body
+  name?: string
+  role?: string
+  password?: string
+  admin?: boolean
+  */
   async update(id: number, updateUserDto: Prisma.UserUpdateInput) {
     const user = await this.databaseService.user.findUnique({ where: {id}} );
     if(user){

@@ -16,10 +16,10 @@ model User {
 }
 
 model Product {
-  id      Int     @id @default(autoincrement())
+  id      Int      @id @default(autoincrement())
+  date    DateTime @default(now())
   name    String
   value   Float
-  date    DateTime
   qnt     Int
   ownerId String
 }
