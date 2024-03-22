@@ -10,16 +10,17 @@ datasource db {
 model User {
   id       Int     @id @default(autoincrement())
   name     String
+  email    String  @unique()
   role     String
   password String
-  admin    Boolean
+  admin    Boolean @default(false)
 }
 
 model Product {
-  id      Int      @id @default(autoincrement())
-  date    DateTime @default(now())
-  name    String
-  value   Float
-  qnt     Int
-  ownerId String
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  name      String
+  value     Float
+  qnt       Int
+  ownerId   Float
 }

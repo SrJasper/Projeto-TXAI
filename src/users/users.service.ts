@@ -1,8 +1,9 @@
-/* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
-import * as bcrypt from 'bcrypt';
+import { genSalt, hash } from 'bcryptjs'
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { IUser } from 'src/iterfaces/IUser';
 
 @Injectable()
 export class UsersService {
@@ -11,74 +12,114 @@ export class UsersService {
   /*
   @Body
   name: string
+  email: string
   role: string
   password: string
   passwordConfirmation: string
   admin: boolean
   */
-  async create(createUserDto: Prisma.UserCreateInput) {
-    const { passwordConfirmation, ...userDataWithoutConfirmation } =
-      createUserDto;
-    // Verificar se passwordConfirmation coincide com a senha
-    if (createUserDto.password !== passwordConfirmation) {
-      return 'A senha e a confirmação de senha não coincidem.';
+  async create(createUserDto: CreateUserDto) {
+    const { confirmPassword, ...userData } = createUserDto;
+
+    if (createUserDto.password !== confirmPassword) {
+      throw new BadRequestException('A senha e a confirmação de senha não coincidem.');
     }
 
-    const newUser = await this.databaseService.user.create({
-      data: {
-        ...userDataWithoutConfirmation,
-        password: await bcrypt.hash(createUserDto.password, 2),
-    },
-    });
+    const salt = await genSalt(10);
+    const passHash = await hash(createUserDto.password, salt);
 
-    return newUser;
+    try{
+      const newUser = await this.databaseService.user.create({
+        data: {
+          ...userData,
+          password: passHash,
+        },
+      });
+      return 'O usuário de ' + newUser.name + ' foi criado!';
+    } catch{ 
+      throw new BadRequestException('O e-mail colocado já está cadastrado');
+    }    
   }
 
-  async findAll() {
+
+  async findAll(user: IUser) {
+    if(!user.admin) {
+      throw new BadRequestException('Usuário não é um administrador!')
+    }
     const users = this.databaseService.user.findMany();
     if(!users) {
-      return 'Nenhum usuário cadastrado.';
+      throw new BadRequestException('Nenhum usuário cadastrado.');
     } else {
       return users;
     }
   }
   
-  async findOne(id: number) {    
-    const user = await this.databaseService.user.findUnique({ where: {id}} );
-    if(user){ 
-      return user;
+  async findOne(id: number, user: IUser) {
+    if(!user.admin) {
+      throw new BadRequestException('Usuário não é um administrador!')
+    }   
+    const userDB = await this.databaseService.user.findUnique({ where: {id}} );
+    if(userDB){ 
+      return userDB;
     } else {
-      return 'Usuário não encontrado';
+      throw new BadRequestException('Usuário não encontrado');
     }
   }
 
   /*
   @Body
   name?: string
-  role?: string
   password?: string
+  role?: string
   admin?: boolean
   */
-  async update(id: number, updateUserDto: Prisma.UserUpdateInput) {
-    const user = await this.databaseService.user.findUnique({ where: {id}} );
-    if(user){
+  async update(id: number, updateUserDto: UpdateUserDto, user: IUser) {
+    console.log('user: ' + user.name);
+
+    if(!user.admin && id !== user.id) {
+      throw new BadRequestException('Usuário sem permissão para realizar a modificação');
+    }
+    if(updateUserDto.password){
+      if(updateUserDto.password !== updateUserDto.confirmPassword){
+        throw new BadRequestException('As senhas devem ser iguais para alterá-las');
+      }
+    }
+    const userDB = await this.databaseService.user.findUnique({ where: {id}} );
+    if(!user.admin){
       await this.databaseService.user.update({ 
         where: {id},
-        data: updateUserDto,
-      } );
-      return 'usuário deletado';
+        data:{
+          ...updateUserDto,
+          admin: false,
+        },
+      });
+      return 'O seu usuário foi alterado, ' + updateUserDto.name;
     } else {
-      return 'Nenhum usuário cadastrado com o id: ' + id;
+      if(userDB){
+        await this.databaseService.user.update({ 
+          where: {id},
+          data: updateUserDto,
+        } );
+        return 'O usuário do ' + updateUserDto.name + ' foi alterado ';
+      } else {
+        throw new BadRequestException('Nenhum usuário cadastrado com o id: ' + id);
+      }
     }
   }
 
-  async remove(id: number) {
-    const user = await this.databaseService.user.findUnique({ where: {id}} );
-    if(user){
+  async remove(id: number, user: IUser) {
+
+    if(!user.admin || id !== user.id){
+      throw new BadRequestException("Usuário não tem permissão para deletar!")
+    }
+
+    const userDb = await this.databaseService.user.findUnique({ where: {id}} );
+
+    if(userDb){
       await this.databaseService.user.delete({ where: {id}} );
       return 'usuário deletado';
     } else {
-      return 'Nenhum usuário cadastrado com o id: ' + id;
+      throw new BadRequestException('Nenhum usuário cadastrado com o id: ' + id);
     }
   }
 }

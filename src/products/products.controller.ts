@@ -1,34 +1,42 @@
-/* eslint-disable prettier/prettier */
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { Prisma } from '@prisma/client';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { Request } from 'express';
+
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  create(@Body() createProductDto: Prisma.ProductCreateInput) {
-    return this.productsService.create(createProductDto);
+  create(
+    @Body() createProductDto: CreateProductDto,
+    @Req()req: Request,
+  ) {
+    return this.productsService.create(createProductDto, req.user);
   }
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  findAll(@Req()req: Request) {
+    return this.productsService.findAll(req.user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+  findOne(@Param('id') id: string, @Req()req: Request) {
+    return this.productsService.findOne(+id, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProductDto: Prisma.ProductUpdateInput) {
-    return this.productsService.update(+id, updateProductDto);
+  update(
+    @Param('id') id: string, 
+    @Body() updateProductDto: UpdateProductDto,
+    @Req()req: Request){
+    return this.productsService.update(+id, updateProductDto, req.user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+  remove(@Param('id') id: string,@Req()req: Request) {
+    return this.productsService.remove(+id, req.user);
   }
 }

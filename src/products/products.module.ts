@@ -1,13 +1,17 @@
-/* eslint-disable prettier/prettier */
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { DatabaseModule } from 'src/database/database.module';
+import { AuthGuardMiddleware } from 'src/auth-guard/auth-guard.middleware';
 
 @Module({
   imports: [DatabaseModule],
   controllers: [ProductsController],
   providers: [ProductsService],
 })
-export class ProductsModule {}
+export class ProductsModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthGuardMiddleware).forRoutes(ProductsController);
+  }
+}
 
